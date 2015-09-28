@@ -23,6 +23,12 @@ trait Heap {
 
   def findMin(h: H): A // a minimum of the heap h
   def deleteMin(h: H): H // a heap resulting from deleting a minimum of h
+
+  def toSeq(h: H, acc: Seq[A]): Seq[A] =
+    if (isEmpty(h)) acc else toSeq(deleteMin(h), acc :+ findMin(h))
+  
+  def toHeap(ns: Seq[A], acc: H): H =
+    if (ns.isEmpty) acc else toHeap(ns.tail, insert(ns.head, acc))
 }
 
 // Figure 3, page 7
