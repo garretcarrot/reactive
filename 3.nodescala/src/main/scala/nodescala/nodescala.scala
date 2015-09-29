@@ -1,15 +1,14 @@
 package nodescala
 
-import com.sun.net.httpserver._
-import scala.concurrent._
-import scala.concurrent.duration._
-import ExecutionContext.Implicits.global
-import scala.async.Async.{async, await}
-import scala.collection._
-import scala.collection.JavaConversions._
-import java.util.concurrent.{Executor, ThreadPoolExecutor, TimeUnit, LinkedBlockingQueue}
-import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import java.net.InetSocketAddress
+import java.util.concurrent.{LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+
+import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
+
+import scala.collection.JavaConverters._
+import scala.collection.immutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Future, Promise}
 
 /** Contains utilities common to the NodeScala© framework.
  */
@@ -27,9 +26,15 @@ trait NodeScala {
    *
    *  @param exchange     the exchange used to write the response back
    *  @param token        the cancellation token
-   *  @param body         the response to write back
+   *  @param response     the response to write back
    */
-  private def respond(exchange: Exchange, token: CancellationToken, response: Response): Unit = ???
+  private def respond(exchange: Exchange, token: CancellationToken, response: Response): Unit = {
+    while (token.nonCancelled && response.hasNext) {
+      val chunk = response.next()
+      exchange.write(chunk)
+    }
+    exchange.close()
+  }
 
   /** A server:
    *  1) creates and starts an http listener
@@ -41,7 +46,21 @@ trait NodeScala {
    *  @param handler        a function mapping a request to a response
    *  @return               a subscription that can stop the server and all its asynchronous operations *entirely*
    */
-  def start(relativePath: String)(handler: Request => Response): Subscription = ???
+  def start(relativePath: String)(handler: Request => Response): Subscription = {
+    val listener = createListener(relativePath)
+    val listenerSubscription = listener.start()
+    val responderSubscription = Future.run() { token =>
+      Future {
+        while (token.nonCancelled) {
+          for ((req, exchange) <- listener.nextRequest()) {
+            respond(exchange, token, handler(req))
+          }
+        }
+      }
+    }
+
+    Subscription(listenerSubscription, responderSubscription)
+  }
 
 }
 
@@ -76,7 +95,7 @@ object NodeScala {
 
   object Exchange {
     def apply(exchange: HttpExchange) = new Exchange {
-      val os = exchange.getResponseBody()
+      val os = exchange.getResponseBody
       exchange.sendResponseHeaders(200, 0L)
 
       def write(s: String) = os.write(s.getBytes)
@@ -84,7 +103,7 @@ object NodeScala {
       def close() = os.close()
 
       def request: Request = {
-        val headers = for ((k, vs) <- exchange.getRequestHeaders) yield (k, vs.toList)
+        val headers = for ((k, vs) <- exchange.getRequestHeaders.asScala) yield (k, vs.asScala.toList)
         immutable.Map() ++ headers
       }
     }
