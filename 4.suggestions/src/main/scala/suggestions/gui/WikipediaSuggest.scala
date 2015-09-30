@@ -85,9 +85,7 @@ object WikipediaSuggest extends SimpleSwingApplication with ConcreteSwingApi wit
 
     val onNextSuggestion: Try[List[String]] => Unit = {
       case Success(completions) => suggestionList.listData = completions
-      case Failure(e) =>
-        status.text = e.getMessage
-        throw e
+      case Failure(e) => status.text = e.getMessage
     }
     
     val suggestionSubscription: Subscription =
