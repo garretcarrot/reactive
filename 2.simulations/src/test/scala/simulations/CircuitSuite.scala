@@ -1,12 +1,12 @@
 package simulations
 
-import org.scalatest.FunSuite
+import org.scalatest.FunSuiteLike
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class CircuitSuite extends CircuitSimulator with FunSuite {
+class CircuitSuite extends CircuitSimulator with FunSuiteLike {
   val InverterDelay = 1
   val AndGateDelay = 3
   val OrGateDelay = 5
