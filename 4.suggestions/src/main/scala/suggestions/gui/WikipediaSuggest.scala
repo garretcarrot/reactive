@@ -1,27 +1,24 @@
 package suggestions
 package gui
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.JavaConverters._
-import scala.concurrent._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.swing._
-import scala.util.{ Try, Success, Failure }
-import scala.swing.event._
-import swing.Swing._
 import javax.swing.UIManager
-import Orientation._
-import rx.subscriptions.CompositeSubscription
-import rx.lang.scala.Observable
-import rx.lang.scala.Subscription
-import observablex._
-import search._
+
+import rx.lang.scala.{Observable, Subscription}
+import suggestions.observablex.SchedulerEx
+import suggestions.search.Search
+
+import scala.collection.mutable.ListBuffer
+import scala.swing.Orientation.{Horizontal, Vertical}
+import scala.swing.Swing.EmptyBorder
+import scala.swing._
+import scala.swing.event.Event
+import scala.util.{Failure, Success, Try}
 
 object WikipediaSuggest extends SimpleSwingApplication with ConcreteSwingApi with ConcreteWikipediaApi {
 
   {
     try {
-      UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
+      UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName)
     } catch {
       case t: Throwable =>
     }
@@ -80,27 +77,35 @@ object WikipediaSuggest extends SimpleSwingApplication with ConcreteSwingApi wit
      *  `myEditorPane.text = "act"` : sets the content of `myEditorPane` to "act"
      */
 
-    // TO IMPLEMENT
-    val searchTerms: Observable[String] = ???
+    val searchTerms: Observable[String] =
+      searchTermField.textValues
 
-    // TO IMPLEMENT
-    val suggestions: Observable[Try[List[String]]] = ???
+    val suggestions: Observable[Try[List[String]]] =
+      searchTerms concatRecovered wikiSuggestResponseStream
 
-    // TO IMPLEMENT
-    val suggestionSubscription: Subscription =  suggestions.observeOn(eventScheduler) subscribe {
-      x => ???
+    val onNextSuggestion: Try[List[String]] => Unit = {
+      case Success(completions) => suggestionList.listData = completions
+      case Failure(e) =>
+        status.text = e.getMessage
+        throw e
+    }
+    
+    val suggestionSubscription: Subscription =
+      suggestions.observeOn(eventScheduler) subscribe onNextSuggestion
+
+    val selections: Observable[String] =
+      button.clicks flatMapIterable (_ => suggestionList.selection.items)
+
+    val pages: Observable[Try[String]] =
+      selections concatRecovered wikiPageResponseStream
+
+    val onNextPage: Try[String] => Unit = {
+      case Success(page) => editorpane.text = page
+      case Failure(e) => status.text = e.getMessage
     }
 
-    // TO IMPLEMENT
-    val selections: Observable[String] = ???
-
-    // TO IMPLEMENT
-    val pages: Observable[Try[String]] = ???
-
-    // TO IMPLEMENT
-    val pageSubscription: Subscription = pages.observeOn(eventScheduler) subscribe {
-      x => ???
-    }
+    val pageSubscription: Subscription =
+      pages.observeOn(eventScheduler) subscribe onNextPage
 
   }
 
