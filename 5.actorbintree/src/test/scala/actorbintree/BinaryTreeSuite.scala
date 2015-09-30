@@ -3,20 +3,19 @@
  */
 package actorbintree
 
-import akka.actor.{ Props, ActorRef, ActorSystem }
-import org.scalatest.{ BeforeAndAfterAll, FlatSpec }
-import akka.testkit.{ TestProbe, ImplicitSender, TestKit }
-import org.scalatest.Matchers
-import scala.util.Random
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
+
 import scala.concurrent.duration._
-import org.scalatest.FunSuiteLike
+import scala.util.Random
 
 class BinaryTreeSuite(_system: ActorSystem) extends TestKit(_system) with FunSuiteLike with Matchers with BeforeAndAfterAll with ImplicitSender
 {
 
   def this() = this(ActorSystem("BinaryTreeSuite"))
 
-  override def afterAll: Unit = system.shutdown()
+  override def afterAll(): Unit = system.shutdown()
 
   import actorbintree.BinaryTreeSet._
 
@@ -50,13 +49,13 @@ class BinaryTreeSuite(_system: ActorSystem) extends TestKit(_system) with FunSui
     val topNode = system.actorOf(Props[BinaryTreeSet])
 
     topNode ! Contains(testActor, id = 1, 1)
-    expectMsg(ContainsResult(1, false))
+    expectMsg(ContainsResult(1, result = false))
 
     topNode ! Insert(testActor, id = 2, 1)
     topNode ! Contains(testActor, id = 3, 1)
 
     expectMsg(OperationFinished(2))
-    expectMsg(ContainsResult(3, true))
+    expectMsg(ContainsResult(3, result = true))
   }
 
   test("instruction example") {
@@ -74,9 +73,9 @@ class BinaryTreeSuite(_system: ActorSystem) extends TestKit(_system) with FunSui
     val expectedReplies = List(
       OperationFinished(id=10),
       OperationFinished(id=20),
-      ContainsResult(id=50, false),
-      ContainsResult(id=70, true),
-      ContainsResult(id=80, false),
+      ContainsResult(id=50, result = false),
+      ContainsResult(id=70, result = true),
+      ContainsResult(id=80, result = false),
       OperationFinished(id=100)
       )
 
